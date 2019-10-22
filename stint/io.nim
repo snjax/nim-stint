@@ -99,6 +99,27 @@ func skipPrefixes(current_idx: var int, str: string, radix: range[2..16]) {.inli
       doAssert radix == 2, "Parsing mismatch, 0b prefix is only valid for a binary number (base 2)"
       current_idx = 2
 
+func getRadix(i: var int, str: string, radix: static[uint8] = 0):uint8 {.inline.} =
+  if (str.len-i) >= 2:
+    if str[i] == '0':
+      if str[i+1] in {'x', 'X'}:
+        i += 2
+        when radix > 0:
+          doAssert radix == 16, "Parsing mismatch, 0x prefix is only valid for a hexadecimal number (base 16)"
+        return 16
+      elif str[i+1] in {'o', 'O'}:
+        i += 2
+        when radix > 0:
+          doAssert radix == 8, "Parsing mismatch, 0o prefix is only valid for an octal number (base 8)"
+        return 8
+      elif str[i+1] in {'b', 'B'}:
+        i += 2
+        when radix > 0:
+          doAssert radix == 2, "Parsing mismatch, 0b prefix is only valid for a binary number (base 2)"
+        return 2
+  return if radix == 0 : 10 else: radix     
+  
+
 func nextNonBlank(current_idx: var int, s: string) {.inline.} =
   ## Move the current index, skipping white spaces and "_" characters.
 
@@ -113,54 +134,37 @@ func readDecChar(c: range['0'..'9']): int {.inline.}=
   # specialization without branching for base <= 10.
   ord(c) - ord('0')
 
-func parse*[bits: static[int]](input: string, T: typedesc[Stuint[bits]], radix: static[uint8] = 10): T =
-  ## Parse a string and store the result in a Stint[bits] or Stuint[bits].
-
-  static: doAssert (radix >= 2) and radix <= 16, "Only base from 2..16 are supported"
-  # TODO: use static[range[2 .. 16]], not supported at the moment (2018-04-26)
-
-  # TODO: we can special case hex result/input as an array of bytes
-  #       and be much faster
-
-  const base = radix.uint8.stuint(bits)
+func parse*[bits: static[int]](input: string, T: typedesc[Stuint[bits]], radix: static[uint8] = 0): T =
   var curr = 0 # Current index in the string
-  skipPrefixes(curr, input, radix)
+  let cradix = getRadix(curr, input, radix) 
 
+  assert (cradix >= 2'u8) and cradix <= 16'u8, "Only base from 2..16 are supported"
+  let base = cradix.uint8.stuint(bits)
   while curr < input.len:
     # TODO: overflow detection
-    when radix <= 10:
+    if cradix <= 10'u8:
       result = result * base + input[curr].readDecChar.stuint(bits)
     else:
       result = result * base + input[curr].readHexChar.stuint(bits)
     nextNonBlank(curr, input)
 
-func parse*[bits: static[int]](input: string, T: typedesc[Stint[bits]], radix: static[int8] = 10): T =
-  ## Parse a string and store the result in a Stint[bits] or Stuint[bits].
-
-  static: doAssert (radix >= 2) and radix <= 16, "Only base from 2..16 are supported"
-  # TODO: use static[range[2 .. 16]], not supported at the moment (2018-04-26)
-
-  # TODO: we can special case hex result/input as an array of bytes
-  #       and be much faster
-
-  # For conversion we require overflowing operations (for example for negative hex numbers)
-  const base = radix.int8.stuint(bits)
-
+func parse*[bits: static[int]](input: string, T: typedesc[Stint[bits]], radix: static[int8] = 0): T =
   var
     curr = 0 # Current index in the string
     isNeg = false
     no_overflow: Stuint[bits]
 
   if input[curr] == '-':
-    doAssert radix == 10, "Negative numbers are only supported with base 10 input."
     isNeg = true
     inc curr
-  else:
-    skipPrefixes(curr, input, radix)
+
+  let cradix = getRadix(curr, input, radix) 
+  assert (cradix >= 2'u8) and cradix <= 16'u8, "Only base from 2..16 are supported"
+  let base = cradix.int8.stuint(bits)
 
   while curr < input.len:
     # TODO: overflow detection
-    when radix <= 10:
+    if cradix <= 10'u8:
       no_overflow = no_overflow * base + input[curr].readDecChar.stuint(bits)
     else:
       no_overflow = no_overflow * base + input[curr].readHexChar.stuint(bits)

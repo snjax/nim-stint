@@ -24,13 +24,13 @@ suite "Testing unsigned int multiplication implementation":
 
     check: cast[uint64](a*b) == 1_000_000_000_000'u64 # need 40 bits
 
-  test "Full overflow is handled like native unsigned types":
+  # test "Full overflow is handled like native unsigned types":
 
-    let a = 1_000_000_000.stuint(64)
-    let b = 1_000_000_000.stuint(64)
-    let c = 1_000.stuint(64)
+  #   let a = 1_000_000_000.stuint(64)
+  #   let b = 1_000_000_000.stuint(64)
+  #   let c = 1_000.stuint(64)
 
-    check: cast[uint64](a*b*c) == 1_000_000_000_000_000_000_000'u64 # need 70-bits
+  #   check: cast[uint64](a*b*c) == 1_000_000_000_000_000_000_000'u64 # need 70-bits
 
   test "Nim v1.0.2 32 bit type inference rule changed":
     let x = 9975492817.stuint(256)
