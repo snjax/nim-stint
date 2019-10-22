@@ -117,3 +117,25 @@ proc powmod*(a, b, m: Stuint): Stuint =
             else: a mod m
 
   result = powmod_internal(a_m, b, m)
+
+proc invmod*(x, m: StUint): StUint =
+  var a = if x < m: x else: x mod m
+  var (b, x0) = (m, StUint.zero)
+  var (s_result, s_x0) = (true, true)
+  result = StUint.one
+  if b == StUint.one: return
+  while a != StUint.one:
+    if s_result xor s_x0:
+      result = result + (a div b) * x0
+    else:
+      let t = (a div b) * x0
+      if result > t:
+        result = result - t
+      else:
+        result = t - result
+        s_result = not s_result
+    a = a mod b
+    swap a, b
+    swap x0, result
+    swap s_x0, s_result
+  if not s_result: result = m - result
